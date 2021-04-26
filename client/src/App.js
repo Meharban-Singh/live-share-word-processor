@@ -1,11 +1,31 @@
-import Editor from "./Editor.js";
+import { v4 as uuidV4 } from "uuid";
 import "./App.css";
+
+import {
+	BrowserRouter as Router,
+	Redirect,
+	Switch,
+	Route,
+} from "react-router-dom";
+
+import Editor from "./Editor.js";
 
 function App() {
 	return (
-		<div className="App">
-			<Editor />
-		</div>
+		<Router>
+			<Switch>
+				{/* Match exact url path */}
+				<Route path="/" exact>
+					{/* Gen random Id for document and then redirect to that id */}
+					<Redirect to={`/documents/${uuidV4()}`} />
+				</Route>
+
+				{/* Handle route at /documents/:documentId */}
+				<Route path="/documents/:documentId">
+					<Editor />
+				</Route>
+			</Switch>
+		</Router>
 	);
 }
 

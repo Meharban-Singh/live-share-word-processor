@@ -1,4 +1,5 @@
 import React, { useCallback, useState, useEffect } from "react";
+import { useParams } from "react-router-dom";
 
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -32,8 +33,8 @@ export default function Editor() {
 	const [quill, setQuill] = useState();
 	const [socket, setSocket] = useState();
 
-	// TODO: Connect to DB
-	const documentId = null;
+	// Get ID from URL params
+	const { documentId } = useParams();
 
 	// On component mount, init the socket client
 	useEffect(() => {
@@ -47,7 +48,7 @@ export default function Editor() {
 	}, []);
 
 	useEffect(() => {
-		if (socket === null || quill === null) return;
+		if (socket == null || quill == null) return;
 
 		// load document - needed to do only once
 		socket.once("load-document", document => {
@@ -60,7 +61,7 @@ export default function Editor() {
 
 	// When state of socket or quill is changed, send changes to server
 	useEffect(() => {
-		if (socket === null || quill === null) return;
+		if (socket == null || quill == null) return;
 
 		// When any change made in the editor, send the changes to server
 		const textChangeHandler = (delta, oldDelta, source) => {
