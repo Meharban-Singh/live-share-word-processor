@@ -1,5 +1,4 @@
-import React, { useCallback, useState } from "react";
-import { useParams } from "react-router-dom";
+import React, { useCallback, useState, useEffect } from "react";
 
 import Quill from "quill";
 import "quill/dist/quill.snow.css";
@@ -7,7 +6,7 @@ import "quill/dist/quill.snow.css";
 import { io } from "socket.io-client";
 
 // CONSTANTS
-const SAVE_INTERVAL_MS = 2000; // Auto Save to DB time
+const SAVE_INTERVAL = 2000; // Auto Save to DB time
 const TOOLBAR_OPTIONS = [
 	["bold", "italic", "underline", "strike"], // toggled buttons
 	["blockquote", "code-block"],
@@ -29,7 +28,66 @@ const TOOLBAR_OPTIONS = [
 ];
 
 export default function Editor() {
+	// state
 	const [quill, setQuill] = useState();
+	const [socket, setSocket] = useState();
+
+	// TODO: Connect to DB
+	const documentId = null;
+
+	// On component mount, init the socket client
+	useEffect(() => {
+		const socketInstace = io("http://localhost:3001");
+		setSocket(socketInstace);
+
+		// Reset the socket instance on component unmount
+		return () => {
+			socketInstace.disconnect();
+		};
+	}, []);
+
+	useEffect(() => {
+		if (socket === null || quill === null) return;
+
+		// load document - needed to do only once
+		socket.once("load-document", document => {
+			quill.setContents(document);
+			quill.enable(); // enable editor
+		});
+
+		socket.emit("get-document", documentId); // send document id to the server so it can load
+	}, [socket, quill, documentId]);
+
+	// When state of socket or quill is changed, send changes to server
+	useEffect(() => {
+		if (socket === null || quill === null) return;
+
+		// When any change made in the editor, send the changes to server
+		const textChangeHandler = (delta, oldDelta, source) => {
+			if (source !== "user") return; // no need to send non-user made changes
+
+			socket.emit("send-changes", delta);
+		};
+		quill.on("text-change", textChangeHandler);
+
+		// Receive changes from live-share, then update the contents of editor
+		const receiveChangesHandler = delta => {
+			quill.updateContents(delta);
+		};
+		socket.on("receive-changes", receiveChangesHandler);
+
+		const periodicSaveDocument = setInterval(() => {
+			// Send contents to the server
+			socket.emit("save-document", quill.getContents());
+		}, SAVE_INTERVAL);
+
+		// Componenet unmount => reset quill, socket
+		return () => {
+			quill.off("text-change", textChangeHandler);
+			socket.off("receive-changes", receiveChangesHandler);
+			clearInterval(periodicSaveDocument);
+		};
+	}, [socket, quill]);
 
 	// Init Editor
 	const editorRef = useCallback(container => {
